@@ -62,14 +62,6 @@
    acc)
  ))
 
-;(defn compare-calls [f1 f2 & vs]
-   ;(do
-      ;(print-str "Calling " (:name (meta f1)) \space)
-      ;(eval `(time (~f1 ~@vs)))
-      ;(print-str "Calling " (:name (meta f2)) \space)
-      ;(eval `(time (~f2 ~@vs)))
-      ;nil))
-
 (defmacro compare-calls 
   [f1 f2 & vs]
   `(do
