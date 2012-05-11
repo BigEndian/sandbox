@@ -41,8 +41,6 @@
 (defn abbreviation [sentence]
   (apply str (map #(string/lower-case (first %)) (string/split sentence #"\s+"))))
 
-
-
 (defn in-sets-of [amount coll]
   (if (empty? coll)
     coll
@@ -56,6 +54,31 @@
   ([values] (if (vector? values) values (apply vector values))))
 
 (defn apply*
-  "My implementation of apply"
-  [f vs]
-  (eval `(~f ~@vs)))
+ "My implementation of apply"
+ [f vs]
+ (loop [acc (f (first vs)), vs (rest vs)]
+  (if (seq vs)
+   (recur (f acc (first vs)) (rest vs))
+   acc)
+ ))
+
+(defn compare-calls [f1 f2 & vs]
+   (do
+      (print-str "Calling " (:name (meta f1)) \space)
+      (eval `(time (~f1 ~@vs)))
+      (print-str "Calling " (:name (meta f2)) \space)
+      (eval `(time (~f2 ~@vs)))
+      nil))
+
+(def muted-writer-buf ())
+
+(def muted-writer ; Only works for whatever was printed last unfortunately
+ (proxy [java.io.Writer] [] ; latter vector is vector of arguments for superclass constructor
+  (write [buf] (def muted-writer-buf (concat muted-writer-buf buf)))
+  (close [] nil)
+  (flush [] nil)))
+
+(defmacro mute-print 
+ [form]
+ `(binding [*out* muted-writer]
+   (list ~form ~(apply str muted-writer-buf))))
