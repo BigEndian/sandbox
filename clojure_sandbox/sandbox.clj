@@ -17,7 +17,7 @@
 (defn map*
   "My implementation of map"
   [f vs]
-  (loop [prc (empty vs), uprc vs]
+  (loop [prc (empty vs) uprc vs]
     (if (empty? uprc)
       prc
       (recur (append prc (f (first uprc))) (rest uprc)))))
@@ -34,10 +34,10 @@
 (defn abbreviation [sentence]
   (apply str (map #(string/lower-case (first %)) (string/split sentence #"\s+"))))
 
-(defn in-sets-of [amount coll]
-  (if (empty? coll)
-    coll
-    (concat (conj (empty coll) (take amount coll)) (in-sets-of amount (drop amount coll)))))
+;; (defn in-sets-of [amount coll]
+;;  (loop [coll coll]
+;;    (
+;;    ; (concat (conj (empty coll) (take amount coll)) (in-sets-of amount (drop amount coll)))))
 
 (defn mk-set
   ([] #{})
@@ -46,7 +46,7 @@
 (defn apply*
   "My implementation of apply"
   [f vs]
-  (loop [acc (f (first vs)), vs (rest vs)]
+  (loop [acc (f (first vs)) vs (rest vs)]
     (if (seq vs)
       (recur (f acc (first vs)) (rest vs))
       acc)
@@ -59,18 +59,15 @@
        (time ((first fs#) ~@values))
        (recur (rest fs#)))))
 
-(defprotocol Stringifiable
-  (stringify [object] "Return a string version of the object"))
 
-(extend java.util.Date
-  Stringifiable
-  {:stringify (fn [date] (.toString date))})
+(def returning-printer (proxy [java.io.Writer] []
+  (close [] nil)
+  (flush [] nil)))
 
 
-(comment 
-  (def frame (java.awt.Frame.))
-
-  (defn find-java-method [jclassinst name]
-    (for [method (.getMethods jclassinst)
-          :let [methodName (.getName method)]
-          :when])))
+(defmacro return-print [& forms]
+  `(let [buffer# (transient [])]
+    (binding [*out* (update-proxy returning-printer
+      {"write" (fn [buf#] (apply #(conj! buffer# %&) buf#))})]
+    ~forms
+    (apply str (persistent! buffer#)))))
