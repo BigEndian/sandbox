@@ -44,7 +44,6 @@
   ([& others] (set (apply vector others))))
 
 (defn apply*
-<<<<<<< HEAD
   "My implementation of apply"
   [f vs]
   (loop [acc (f (first vs)), vs (rest vs)]
@@ -59,37 +58,6 @@
        (print "Calling" (first fs#) ": ")
        (time ((first fs#) ~@values))
        (recur (rest fs#)))))
-=======
- "My implementation of apply"
- [f vs]
- (loop [acc (f (first vs)), vs (rest vs)]
-  (if (seq vs)
-   (recur (f acc (first vs)) (rest vs))
-   acc)
- ))
-
-(defmacro compare-calls 
-  [f1 f2 & vs]
-  `(do
-     (time (~f1 ~@vs))
-     (time (~f2 ~@vs))))
->>>>>>> 2725d4113d3bfd9bbe5f64020d0af0fb2f6063a4
-
-(def muted-writer-buf ())
-
-(def muted-writer ; Only works for whatever was printed last unfortunately
-  (proxy [java.io.Writer] [] ; latter vector is vector of arguments for superclass constructor
-    (write [buf] (def muted-writer-buf (concat muted-writer-buf buf)))
-    (close [] nil)
-    (flush [] nil)))
-
-(defmacro mute-print 
-<<<<<<< HEAD
-  [form]
-  `(binding [*out* muted-writer]
-     (list ~form ~(apply str muted-writer-buf))))
-
-
 
 (defprotocol Stringifiable
   (stringify [object] "Return a string version of the object"))
@@ -97,8 +65,6 @@
 (extend java.util.Date
   Stringifiable
   {:stringify (fn [date] (.toString date))})
-
-(def x 10)
 
 
 (comment 
@@ -108,9 +74,3 @@
     (for [method (.getMethods jclassinst)
           :let [methodName (.getName method)]
           :when])))
-
-=======
- [form]
- `(binding [*out* muted-writer]
-   (list ~form (~apply ~str muted-writer-buf))))
->>>>>>> 2725d4113d3bfd9bbe5f64020d0af0fb2f6063a4
