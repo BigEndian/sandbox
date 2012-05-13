@@ -60,14 +60,17 @@
        (recur (rest fs#)))))
 
 
-(def returning-printer (proxy [java.io.Writer] []
-  (close [] nil)
-  (flush [] nil)))
+(defmacro create-redirected-writer [bufvar]
+  `(proxy [java.io.Writer] []
+    (close [] nil)
+    (flush [] nil)
+    (write
+      ([chrs#] (var-set ~bufvar (concat (var-get ~bufvar) chrs#)))
+      ([buff# & __#] (write buff#)))))
 
 
-(defmacro return-print [& forms]
-  `(let [buffer# (transient [])]
-    (binding [*out* (update-proxy returning-printer
-      {"write" (fn [buf#] (apply #(conj! buffer# %&) buf#))})]
-    ~forms
-    (apply str (persistent! buffer#)))))
+  (defmacro return-print [& forms]
+  `(let [buffer# [] routed-writer# (create-redirected-writer (var buffer#))]
+    (binding [*out* routed-writer#]
+    ~@forms
+    (apply str buffer#))))
