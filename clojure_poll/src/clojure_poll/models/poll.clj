@@ -1,80 +1,113 @@
 (ns clojure_poll.models.poll)
 
-; Options is a vector, each element being a map from the option's text to a set of votes
 
-; Poll is a struct, containing a positive integer for the ID,
-; a string for the title, and a map of strings used as keys to sets of votes used as values.
-; Where a vote is a name, a string, and an IP, a string.
-(defstruct poll :id :title :options)
-(defstruct vote :name :ip)
+(defrecord Vote [name ip option_id]
+  Object
+  (toString [this]
+    (:name this)))
+(defrecord Option [id text])
 
+; int, string, sorted-set, set
+(defrecord Poll [id title options votes])
 
-; Define polls to be a set sorted by their respective IDs
-(defonce polls (atom (sorted-set-by #(< (:id %1) (:id %2)))))
+(defonce polls (atom (sorted-set-by #(< (:id @%1) (:id @%2)))))
 (defonce poll-id (atom 0))
 
-(defn poll-id-fn 
-  "Function used to generate a new poll-id"
-  [id]
+(defn new-poll-id-fnc [id]
   (cond
-    (integer? id) (+ id 1)
+    (integer? id) (inc id)
     :else 0))
 
-; Validity functions
-(defn- valid-poll? [pl]
-  (let [votes (flatten (map #(vals %) (:options pl)))]
-    (= (count votes) (distinct (count votes)))))
-
-(defn- has-vote? [pl vt]
-  (let [matches (filter #(= (identity %) vt))]
-    (not (empty? matches))))
-
-(defn- has-option? [pl option]
-  (let [opttexts (keys (:options poll))
-        matches (filter #(= % (key option)) opttexts)]
-    (empty? matches)))
-
-(defn valid-option? [option]
-  (and (map? option) (= 1 (count option)) (string? (key option)) (set? (val option))))
-
-; Shortcut functions
-
-(defn- create-valid-option [opt]
-  (cond 
-    (string? opt) {opt #{}}
-    (and (map? opt) (= 1 (count opt)) (string? (key opt)) (set? (val opt))) opt
-    :else :invalid))
-
-(defn- get-new-poll-id []
-  (let [priorid poll-id]
+(defn get-new-poll-id []
+  (let [prior-id @poll-id]
     (do
-      (swap! poll-id poll-id-fn)
-      priorid)))
+      (swap! poll-id new-poll-id-fnc)
+      prior-id)))
 
-; Functions used with swap!
-(defn- add-poll! [pls pl]
-  (if (valid-poll? pl)
-    (conj pls pl)
+; Validity functions
+
+(defn valid-option? [opt]
+  (if (and (:id opt) (:text opt))
+    true
     false))
 
+(defn valid-vote? [vt]
+  (and (:name vt) (:ip vt)))
 
-(defn- add-option! [pl option]
-  (let [vldopt (create-valid-option option)]
-    (if (has-option? pl vldopt)
-      false
-      (assoc poll :options (assoc (:options poll) (key vldopt) (val vldopt)))
-      )))
+(defn has-vote? [pl vt]
+  (let [votes (:votes pl)
+        duplicates (filter 
+                     #(or (= (:ip %1) (:ip vt)) (= (:name %1) (:name vt))) votes)]
+    (not (empty? duplicates))))
 
-; (defn- add-vote [pl vote]
-  ; (
+(defn has-option? [pl opt]
+  (let [opt-texts (map :text (:options pl))
+        opt-text  (if (valid-option? opt) (:text opt) opt)]
+    (contains? opt-texts opt-text)))
+
+
+; Shortcut functions
+(defn create-option 
+  ([opt-text] 
+   (if (valid-option? opt-text)
+     opt-text
+     (Option. 0 opt-text)))
+  ([id opt-text]
+   (Option. id opt-text)))
+
+(defn create-options [opt-texts]
+  (let [options (map #(create-option %1 %2) (range (count opt-texts)) opt-texts)]
+    (sorted-set-by #(< (:id %1) (:id %2)) options)))
+
+; Side effect functions used by swap!
+
+(defn add-poll! [polls poll]
+  (conj polls poll))
+
+(defn add-vote! [poll vote]
+  (if (has-vote? poll vote)
+    false
+    (assoc poll :votes (conj (:votes poll) vote))))
+
 ; Public functions used to create/manipulate polls
+(defn reset-polls! []
+  (reset! polls (sorted-set-by #(< (:id @%1) (:id @%2)))))
 
-(defn create-poll "Create a poll, starting at ID 0, using the passed title and options to create it"
-  [title options]
-   (let [newpoll (atom (struct poll (get-new-poll-id) title options) :meta {:created (System/currentTimeMillis)})] ; @ is used to deref the atom
-     (swap! polls add-poll! newpoll)))
 
-(defn add-option [pl option]
-  (let [option (create-valid-option option)]
-    (swap! pl add-option! option)))
+(defn add-poll 
+  "Takes a title and a sequence of titles, and then add it to the atomic set of polls,
+  or a poll and adds it to the list if it's not an atomic poll"
+  ([title option-texts]
+   (let [new-poll (atom (Poll. (get-new-poll-id) title (create-options option-texts) []))]
+     (swap! polls add-poll! new-poll)))
+  ([poll]
+   (let [new-poll (if (instance? clojure.lang.Atom poll) poll (atom poll))]
+     (swap! polls add-poll! new-poll))))
 
+(defn add-vote
+  ([poll name ip optionid]
+   (when
+     (< optionid (count (:options @poll))) ; Make sure it's a valid ID
+     (let [vote (Vote. name ip optionid)]
+       (swap! poll add-vote! vote)))))
+
+(defonce ex-poll  (Poll. (get-new-poll-id) "Does objective reality exist?" #{(Option. 0 "Yes") (Option. 1 "No")} []))
+(defonce ex-poll2 (Poll. (get-new-poll-id) "Is reality entirely subjective?" #{(Option. 0 "Yes") (Option. 1 "No")} []))
+
+(defonce ex-vote  (Vote. "Eric" "1.2.3.4" 0))
+(defonce ex-vote2 (Vote. "John" "4.3.2.1" 1))
+
+(defmacro intervene [pair expr]
+  "Intercept a function before it's passed its arguments, in order to modify the arguments.
+  The intervening function (second in the pair) will be apply'd to the arguments of the
+  old function (first in the pair), the returned result will either be used with apply if
+  the intervening function returns a collection, or just immediately applied as (old results)"
+  (let [make-intervening-fn (fn [old intervener] 
+                              (fn [& vals] 
+                                (let [results (apply intervener vals)]
+                                  (if (coll? results) ; Returned a collection, use apply
+                                    (apply old results)
+                                    (old results) ; Otherwise just pass it directly
+                                    ))))]
+    `(let [~(first pair) (~make-intervening-fn ~@pair)]
+       ~expr)))
