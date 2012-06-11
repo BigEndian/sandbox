@@ -5,10 +5,18 @@
   Object
   (toString [this]
     (:name this)))
-(defrecord Option [id text])
+
+(defrecord Option [id text]
+  Object
+  (toString [this]
+    (:text this)))
+
 
 ; int, string, sorted-set, set
-(defrecord Poll [id title options votes])
+(defrecord Poll [id title options votes]
+  Object
+  (toString [this]
+    (str (:title this) ": " (count (:votes this)) " votes")))
 
 (defonce polls (atom (sorted-set-by #(< (:id @%1) (:id @%2)))))
 (defonce poll-id (atom 0))
