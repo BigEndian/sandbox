@@ -1,6 +1,5 @@
 (ns clojure_poll.models.poll)
 
-
 (defrecord Vote [name ip option_id]
   Object
   (toString [this]
@@ -26,7 +25,7 @@
     (integer? id) (inc id)
     :else 0))
 
-(defn get-new-poll-id []
+(defn get-new-poll-id! []
   (let [prior-id @poll-id]
     (do
       (swap! poll-id new-poll-id-fnc)
@@ -53,13 +52,25 @@
         opt-text  (if (valid-option? opt) (:text opt) opt)]
     (contains? opt-texts opt-text)))
 
+(defn- only-keys [m & ks]
+  (let [ks (set ks)
+        handled-as-vect (filter #(contains? ks (key %)) m)]
+    (reduce #(assoc %1 (first %2) (second %2)) {} handled-as-vect)))
+
+(defn poll-exists? 
+  "Takes :id and/or :title, and returns true if any polls matched the passed keywords"
+  [& {:keys [id title] :as kwmap}]
+  (let [polls (map deref @polls) ; Deref it
+        non-nil-keys (sort (keys kwmap))
+        _ (assert (not (empty? non-nil-keys)))
+        modded-pls (map #(apply only-keys %1 non-nil-keys) polls)
+        matched? (some #(= kwmap %) modded-pls)]
+    matched?))
 
 ; Shortcut functions
 (defn create-option 
   ([opt-text] 
-   (if (valid-option? opt-text)
-     opt-text
-     (Option. 0 opt-text)))
+   (Option. -1 opt-text))
   ([id opt-text]
    (Option. id opt-text)))
 
@@ -67,42 +78,53 @@
   (let [options (map #(create-option %1 %2) (range (count opt-texts)) opt-texts)]
     (sorted-set-by #(< (:id %1) (:id %2)) options)))
 
-; Side effect functions used by swap!
+; Functions used by swap!
 
-(defn add-poll! [polls poll]
+(defn add-poll [polls poll]
   (conj polls poll))
 
-(defn add-vote! [poll vote]
+(defn add-vote [poll vote]
   (if (has-vote? poll vote)
     false
     (assoc poll :votes (conj (:votes poll) vote))))
 
+(defn add-option [poll option]
+  (if (has-option? poll option)
+    false
+    (assoc poll :options (conj (:options poll) option))))
+
+
 ; Public functions used to create/manipulate polls
+
 (defn reset-polls! []
   (reset! polls (sorted-set-by #(< (:id @%1) (:id @%2)))))
 
-
-(defn add-poll 
+(defn add-poll! 
   "Takes a title and a sequence of titles, and then add it to the atomic set of polls,
   or a poll and adds it to the list if it's not an atomic poll"
   ([title option-texts]
-   (let [new-poll (atom (Poll. (get-new-poll-id) title (create-options option-texts) []))]
-     (swap! polls add-poll! new-poll)))
+   (let [new-poll (atom (Poll. (get-new-poll-id!) title (create-options option-texts) []))]
+     (swap! polls add-poll new-poll)))
   ([poll]
    (let [new-poll (if (instance? clojure.lang.Atom poll) poll (atom poll))]
-     (swap! polls add-poll! new-poll))))
+     (swap! polls add-poll new-poll))))
 
-(defn add-vote
+(defn add-vote!
   ([poll name ip optionid]
    (when
      (< optionid (count (:options @poll))) ; Make sure it's a valid ID
      (let [vote (Vote. name ip optionid)]
-       (swap! poll add-vote! vote)))))
+       (swap! poll add-vote vote)))))
 
-(defonce ex-poll  (Poll. (get-new-poll-id) "Does objective reality exist?" #{(Option. 0 "Yes") (Option. 1 "No")} []))
-(defonce ex-poll2 (Poll. (get-new-poll-id) "Is reality entirely subjective?" #{(Option. 0 "Yes") (Option. 1 "No")} []))
+(defn add-option!
+  ([poll option-text]
+   (let [option (Option. (count (:options poll)) option-text)]
+     (swap! poll add-option option))))
 
-(defonce ex-vote  (Vote. "Eric" "1.2.3.4" 0))
+(defonce ex-poll1 (Poll. (get-new-poll-id!) "Does objective reality exist?" #{(Option. 0 "Yes") (Option. 1 "No")} []))
+(defonce ex-poll2 (Poll. (get-new-poll-id!) "Is reality entirely subjective?" #{(Option. 0 "Yes") (Option. 1 "No")} []))
+
+(defonce ex-vote1 (Vote. "Eric" "1.2.3.4" 0))
 (defonce ex-vote2 (Vote. "John" "4.3.2.1" 1))
 
 (defmacro intervene [pair expr]
