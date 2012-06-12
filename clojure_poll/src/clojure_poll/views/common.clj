@@ -2,6 +2,7 @@
   (:use [noir.core]
         [noir.response :only [redirect]]
         [hiccup.page :only [include-css html5]]
+        [hiccup.element :only [link-to]]
         [hiccup.form :only [text-field label form-to submit-button]])
   (:require [clojure_poll.models.poll :as poll]))
 
@@ -9,15 +10,17 @@
             (html5
               [:head
                [:title "Clojure Poll"]
-               (include-css "/css/reset.css")]
+               (include-css "/css/reset.css")
+               (include-css "/css/primary.css")]
               [:body
-               [:h1.header "Clojure Poll"]
+               [:div.header-block
+                [:h1.header "Clojure Poll"]]
                [:div#wrapper
                 content]]))
 
 (defpartial polls-list [polls]
             (for [poll polls]
-              [:pre.poll-title (str (:id @poll) \space (:title @poll) \newline (str @poll))]))
+              [:pre.poll-title (link-to (str "/polls/list/" (:id poll)) (:title poll)) (str \space (count (:votes poll)) " votes")]))
 
 (defpartial poll-list [poll]
             [[:h2.poll-title (:title poll)]
@@ -36,7 +39,8 @@
 
 (defpage "/polls/list/" []
          (layout
-           (polls-list @poll/polls)))
+           (polls-list (map deref @poll/polls))))
+
 (defpage "/polls/list/:id" {:keys [id]}
          (if id
            (let [matches (filter #(= (:id %) (Integer/parseInt id)) @poll/polls )]
