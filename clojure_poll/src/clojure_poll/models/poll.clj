@@ -52,10 +52,14 @@
         opt-text  (if (valid-option? opt) (:text opt) opt)]
     (contains? opt-texts opt-text)))
 
-(defn- only-keys [m & ks]
+(defn only-keys [m & ks]
   (let [ks (set ks)
         handled-as-vect (filter #(contains? ks (key %)) m)]
     (reduce #(assoc %1 (first %2) (second %2)) {} handled-as-vect)))
+
+(defn remove-keys [m & ks]
+  (let [ks (set ks)]
+    (apply dissoc m ks)))
 
 (defn poll-exists? 
   "Takes :id and/or :title, and returns true if any polls matched the passed keywords"
