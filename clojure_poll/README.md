@@ -1,6 +1,7 @@
 # clojure_poll
 
-A website written in noir. 
+A simple poll system written using noir and clojure.
+It'll take awhile before it works
 
 ## Usage
 
@@ -11,7 +12,7 @@ lein run
 
 ## License
 
-Copyright (C) 2011 FIXME
+Copyright (C) 2012 BigEndian
 
 Distributed under the Eclipse Public License, the same as Clojure.
 
