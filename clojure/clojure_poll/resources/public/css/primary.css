@@ -1,0 +1,37 @@
+body {
+   font-size: 14px;
+   display:block;
+   width: 70%;
+   height: auto;
+   margin: 25px auto;
+}
+h1 {
+   font-size: 32px;
+}
+
+.header-block {
+   display: block;
+   width: auto;
+   height: auto;
+   background-color: #333333;
+   padding: 15px 0;
+   text-align: center;
+   margin: 0 auto;
+}
+.header-block h1 {
+   color: #CCCCDD;
+}
+#nav {
+   display: block;
+   width: auto;
+   height: 25px;
+   padding: 5px 5px;
+   background-color: #000;
+}
+#nav ul li {
+   display: inline;
+   margin: 0 5px 0 0;
+}
+#nav ul li a {
+   color: #fff;
+}
